@@ -33,3 +33,4 @@ python src/any-cli/main.py --provider <provider> --model <model>
 - Switch between sessions, requires session manager and UI improvement
 - Add Nix build, and UV support
 - /cwd command
+- New file / update file tools
