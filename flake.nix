@@ -30,6 +30,7 @@
             prompt-toolkit
             typer
             google-genai
+            groq
           ]);
       in {
         devShells.default = pkgs.mkShell {

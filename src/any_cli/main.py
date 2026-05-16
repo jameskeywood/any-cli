@@ -7,7 +7,7 @@ from any_cli.chat.session import ChatSession
 from any_cli.clients.registry import get_client
 from any_cli.commands.registry import get_command
 from any_cli.config import settings
-from any_cli.io.console import console
+from any_cli.io.console import console, print_markdown
 from any_cli.io.prompt import get_user_input
 
 
@@ -38,7 +38,7 @@ async def run_chat(provider: str, model: str) -> None:
             continue
 
         result = await agent.run(user_input)
-        console.print_markdown(result)
+        print_markdown(result)
 
 
 @app.command()

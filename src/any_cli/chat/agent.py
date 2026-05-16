@@ -38,7 +38,10 @@ class Agent:
 
             # Execute tool calls
             if response.tool_calls:
-                for call in response.tool_calls:
+                for call in response.tool_calls or []:
+                    if not call.name:
+                        return "Invalid tool call: missing name"
+
                     result = await self._execute_tool(call)
 
                     self.session.add_tool_message(
