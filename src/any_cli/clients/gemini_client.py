@@ -1,91 +1,143 @@
-from collections.abc import AsyncGenerator
-
-import httpx
+from google import genai
+from google.genai import types
 
 from any_cli.clients.base import BaseClient
 from any_cli.config import settings
 from any_cli.models.messages import Message
-from any_cli.models.responses import ChatResponse
+from any_cli.models.responses import ChatResponse, ToolCall
 from any_cli.tools.base import BaseTool
 
 
 class GeminiClient(BaseClient):
     provider = "gemini"
 
-    def __init__(self, model: str = "gemini-2.5-flash") -> None:
+    def __init__(self, model: str = "gemini-3-flash-preview") -> None:
         self.model = model
+        self.client = genai.Client(api_key=settings.gemini_api_key)
 
-    def _build_contents(
-        self,
-        messages: list[Message],
-    ) -> list[dict]:
-        contents = []
+    # ------------------------------------------------------------------
+    # Tools
+    # ------------------------------------------------------------------
+    def _tools(self, tools: list[BaseTool] | None) -> list[types.Tool]:
+        if not tools:
+            return []
 
-        for message in messages:
-            role = "user"
+        # IMPORTANT FIX:
+        # Each tool must become its own Tool object
+        return [
+            types.Tool(
+                function_declarations=[
+                    types.FunctionDeclaration(
+                        name=tool.name,
+                        description=tool.description,
+                        parameters=tool.schema,
+                    )
+                ]
+            )
+            for tool in tools
+        ]
 
-            if message.role == "assistant":
-                role = "model"
-
-            contents.append(
-                {
-                    "role": role,
-                    "parts": [
-                        {
-                            "text": message.content,
-                        }
-                    ],
-                }
+    # ------------------------------------------------------------------
+    # Messages
+    # ------------------------------------------------------------------
+    def _message_to_content(self, message: Message) -> types.Content:
+        if message.role == "assistant":
+            return types.Content(
+                role="model",
+                parts=[types.Part(text=message.content or "")],
             )
 
-        return contents
+        if message.role == "user":
+            return types.Content(
+                role="user",
+                parts=[types.Part(text=message.content or "")],
+            )
 
+        # We do NOT support "tool" role in Gemini SDK
+        # Tool results must be converted into function_response parts
+        if message.role == "tool":
+            metadata = message.metadata or {}
+
+            tool_name = metadata.get("tool_name")
+            tool_call_id = metadata.get("tool_call_id")
+
+            return types.Content(
+                role="user",
+                parts=[
+                    types.Part.from_function_response(
+                        name=tool_name,
+                        response={"result": message.content},
+                        # ❌ DO NOT PASS id — SDK does not support it
+                    )
+                ],
+            )
+
+        # fallback safety
+        return types.Content(
+            role="user",
+            parts=[types.Part(text=message.content or "")],
+        )
+
+    def _contents(self, messages: list[Message]) -> list[types.Content]:
+        return [self._message_to_content(m) for m in messages]
+
+    # ------------------------------------------------------------------
+    # Chat
+    # ------------------------------------------------------------------
     async def chat(
         self,
         messages: list[Message],
         tools: list[BaseTool] | None = None,
     ) -> ChatResponse:
-        if not settings.gemini_api_key:
-            raise ValueError("GEMINI_API_KEY is not set")
 
-        payload = {
-            "contents": self._build_contents(messages),
-        }
-
-        url = (
-            "https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self.model}:generateContent"
+        config = types.GenerateContentConfig(
+            tools=self._tools(tools),
+            automatic_function_calling=types.AutomaticFunctionCallingConfig(
+                disable=True,
+            ),
         )
 
-        params = {
-            "key": settings.gemini_api_key,
-        }
+        response = await self.client.aio.models.generate_content(
+            model=self.model,
+            contents=self._contents(messages),
+            config=config,
+        )
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                url,
-                params=params,
-                json=payload,
-            )
+        candidate = response.candidates[0].content
 
-        response.raise_for_status()
+        tool_calls: list[ToolCall] = []
+        text_parts: list[str] = []
 
-        data = response.json()
+        for part in candidate.parts:
+            # ---------------------------
+            # FUNCTION CALL
+            # ---------------------------
+            fc = getattr(part, "function_call", None)
+            if fc:
+                tool_calls.append(
+                    ToolCall(
+                        id=fc.id,
+                        name=fc.name,
+                        arguments=dict(fc.args or {}),
+                        raw={
+                            "id": fc.id,
+                            "name": fc.name,
+                            "args": dict(fc.args or {}),
+                        },
+                    )
+                )
+                continue
 
-        content = data["candidates"][0]["content"]["parts"][0]["text"]
+            # ---------------------------
+            # TEXT OUTPUT
+            # ---------------------------
+            text = getattr(part, "text", None)
+            if text:
+                text_parts.append(text)
 
         return ChatResponse(
-            content=content,
+            content="\n".join(text_parts).strip() or None,
+            tool_calls=tool_calls,
             provider=self.provider,
             model=self.model,
         )
-
-    async def stream_chat(
-        self,
-        messages: list[Message],
-        tools: list[BaseTool] | None = None,
-    ) -> AsyncGenerator[str, None]:
-        response = await self.chat(messages, tools)
-
-        yield response.content
-

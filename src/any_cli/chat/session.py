@@ -1,4 +1,5 @@
 from any_cli.models.messages import Message
+from any_cli.models.tools import ToolCall
 
 
 class ChatSession:
@@ -21,14 +22,21 @@ class ChatSession:
             )
         )
 
-    def add_tool_message(self, content: str) -> None:
+    def add_tool_message(
+        self,
+        tool_call: ToolCall,
+        result: str,
+    ) -> None:
         self.messages.append(
             Message(
                 role="tool",
-                content=content,
+                content=result,
+                metadata={
+                    "tool_name": tool_call.name,
+                    "tool_call_id": tool_call.id,
+                },
             )
         )
 
     def clear(self) -> None:
         self.messages.clear()
-

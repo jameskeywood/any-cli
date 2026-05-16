@@ -1,6 +1,7 @@
 from any_cli.clients.base import BaseClient
 from any_cli.chat.session import ChatSession
-from any_cli.tools.registry import get_tools
+from any_cli.models.responses import ToolCall
+from any_cli.tools.registry import TOOLS
 
 
 class Agent:
@@ -11,11 +12,45 @@ class Agent:
     ) -> None:
         self.client = client
         self.session = session
-        self.tools = get_tools()
 
-    async def stream_response(self):
-        return self.client.stream_chat(
-            messages=self.session.messages,
-            tools=self.tools,
-        )
+    async def _execute_tool(
+        self,
+        call: ToolCall,
+    ) -> str:
+        tool = TOOLS.get(call.name)
 
+        if not tool:
+            return f"Unknown tool: {call.name}"
+
+        return await tool.execute(call.arguments)
+
+    async def run(
+        self,
+        user_input: str,
+    ) -> str:
+        self.session.add_user_message(user_input)
+
+        while True:
+            response = await self.client.chat(
+                self.session.messages,
+                tools=list(TOOLS.values()),
+            )
+
+            # Execute tool calls
+            if response.tool_calls:
+                for call in response.tool_calls:
+                    result = await self._execute_tool(call)
+
+                    self.session.add_tool_message(
+                        tool_call=call,
+                        result=result,
+                    )
+
+                continue
+
+            # Final assistant response
+            final = response.content or ""
+
+            self.session.add_assistant_message(final)
+
+            return final

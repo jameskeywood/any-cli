@@ -29,12 +29,17 @@
             rich
             prompt-toolkit
             typer
+            google-genai
           ]);
       in {
         devShells.default = pkgs.mkShell {
           packages = [
             pythonEnv
           ];
+
+          shellHook = ''
+            export PYTHONPATH="$PWD/src:$PYTHONPATH"
+          '';
         };
       }
     );

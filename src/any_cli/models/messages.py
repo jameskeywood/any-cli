@@ -1,16 +1,9 @@
-from typing import Literal
+from typing import Any
 
 from pydantic import BaseModel
 
 
-Role = Literal[
-    "system",
-    "user",
-    "assistant",
-    "tool",
-]
-
-
 class Message(BaseModel):
-    role: Role
-    content: str
+    role: str
+    content: str | None = None
+    metadata: dict[str, Any] | None = None

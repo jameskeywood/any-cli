@@ -17,11 +17,3 @@ class BaseClient(ABC):
         tools: list[BaseTool] | None = None,
     ) -> ChatResponse:
         pass
-
-    @abstractmethod
-    async def stream_chat(
-        self,
-        messages: list[Message],
-        tools: list[BaseTool] | None = None,
-    ) -> AsyncGenerator[str, None]:
-        pass

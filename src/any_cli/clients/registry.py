@@ -1,10 +1,8 @@
 from any_cli.clients.base import BaseClient
 from any_cli.clients.gemini_client import GeminiClient
-from any_cli.clients.openai_client import OpenAIClient
 
 
 CLIENTS: dict[str, type[BaseClient]] = {
-    "openai": OpenAIClient,
     "gemini": GeminiClient,
 }
 
