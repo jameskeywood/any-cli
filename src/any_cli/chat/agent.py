@@ -9,9 +9,11 @@ class Agent:
         self,
         client: BaseClient,
         session: ChatSession,
+        model: str
     ) -> None:
         self.client = client
         self.session = session
+        self.model = model
 
     async def _execute_tool(
         self,
@@ -32,6 +34,7 @@ class Agent:
 
         while True:
             response = await self.client.chat(
+                self.model,
                 self.session.messages,
                 tools=list(TOOLS.values()),
             )

@@ -5,14 +5,14 @@ from any_cli.clients.base import BaseClient
 from any_cli.config import settings
 from any_cli.models.messages import Message
 from any_cli.models.responses import ChatResponse, ToolCall
+from any_cli.models.limits import ModelLimits
 from any_cli.tools.base import BaseTool
 
 
 class GeminiClient(BaseClient):
     provider = "gemini"
 
-    def __init__(self, model: str = "gemini-3-flash-preview") -> None:
-        self.model = model
+    def __init__(self) -> None:
         self.client = genai.Client(api_key=settings.gemini_api_key)
 
     # ------------------------------------------------------------------
@@ -86,6 +86,7 @@ class GeminiClient(BaseClient):
     # ------------------------------------------------------------------
     async def chat(
         self,
+        model: str,
         messages: list[Message],
         tools: list[BaseTool] | None = None,
     ) -> ChatResponse:
@@ -98,7 +99,7 @@ class GeminiClient(BaseClient):
         )
 
         response = await self.client.aio.models.generate_content(
-            model=self.model,
+            model=model,
             contents=self._contents(messages),
             config=config,
         )
@@ -139,5 +140,18 @@ class GeminiClient(BaseClient):
             content="\n".join(text_parts).strip() or None,
             tool_calls=tool_calls,
             provider=self.provider,
-            model=self.model,
+            model=model,
         )
+
+
+    def get_available_models(self) -> list[str]:
+        return ["gemini-2.5-flash"]
+
+
+    def get_model_limits(self, model: str) -> ModelLimits:
+        return ModelLimits(
+            requests_per_minute=5,
+            requests_per_day=20,
+            tokens_per_minute=250000,
+            tokens_per_day=None)
+

@@ -1,11 +1,9 @@
 from any_cli.commands.base import BaseCommand
 from any_cli.commands.clear import ClearCommand
-from any_cli.commands.help import HelpCommand
 
 
 COMMANDS: dict[str, BaseCommand] = {
     "/clear": ClearCommand(),
-    "/help": HelpCommand(),
 }
 
 

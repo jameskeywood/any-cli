@@ -2,6 +2,7 @@ import asyncio
 
 import typer
 
+from any_cli.orchestrator import AgentOrchestrator
 from any_cli.chat.agent import Agent
 from any_cli.chat.session import ChatSession
 from any_cli.clients.registry import get_client
@@ -9,16 +10,25 @@ from any_cli.commands.registry import get_command
 from any_cli.config import settings
 from any_cli.io.console import console, print_markdown
 from any_cli.io.prompt import get_user_input
+from any_cli.io.select import select_provider, select_model
 
 
 app = typer.Typer()
 
 
-async def run_chat(provider: str, model: str) -> None:
-    client = get_client(provider, model)
-    session = ChatSession()
-    agent = Agent(client, session)
+async def run_chat() -> None:
+    agent_orchestrator = AgentOrchestrator()
 
+    registry = agent_orchestrator.agent_registry
+
+    # use the agent registry to provide a selection of
+    # model options available to the user
+
+    provider = select_provider(registry)
+    model = select_model(registry, provider)
+
+    agent = agent_orchestrator.create_agent(provider, model)
+ 
     console.print(f"[green]Provider:[/] {provider}")
     console.print(f"[green]Model:[/] {model}\n")
     console.print("[dim]/help for commands[/dim]\n")
@@ -37,16 +47,14 @@ async def run_chat(provider: str, model: str) -> None:
                 console.print("[red]Unknown command[/red]")
             continue
 
+        # check limits somehow before running agent.run
+
         result = await agent.run(user_input)
         print_markdown(result)
 
-
 @app.command()
-def chat(
-    provider: str = settings.default_provider,
-    model: str = settings.default_model,
-) -> None:
-    asyncio.run(run_chat(provider, model))
+def chat() -> None:
+    asyncio.run(run_chat())
 
 
 if __name__ == "__main__":

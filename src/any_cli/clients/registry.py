@@ -9,14 +9,10 @@ CLIENTS: dict[str, type[BaseClient]] = {
 }
 
 
-def get_client(
-    provider: str,
-    model: str,
-) -> BaseClient:
+def get_client(provider: str) -> BaseClient:
     client_class = CLIENTS.get(provider)
 
     if client_class is None:
         raise ValueError(f"Unknown provider: {provider}")
 
-    return client_class(model=model)
-
+    return client_class()

@@ -29,6 +29,7 @@
             rich
             prompt-toolkit
             typer
+
             google-genai
             groq
           ]);

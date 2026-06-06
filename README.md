@@ -14,11 +14,12 @@ Add required API keys to a `.env` file:
 ```
 GEMINI_API_KEY=<gemini_api_key>
 GROQ_API_KEY=<groq_api_key>
+OPENROUTER_API_KEY=<openrouter_api_key>
 ```
 
 Execute the following:
 ```
-python src/any-cli/main.py --provider <provider> --model <model>
+python src/any-cli/main.py
 ```
 
 ## Sources
@@ -28,8 +29,6 @@ python src/any-cli/main.py --provider <provider> --model <model>
 
 ## TODO
 
-- Ensure client specific logic is fully encapsulated
-- Global rate limit in .env
 - Switch between sessions, requires session manager and UI improvement
 - Add Nix build, and UV support
 - /cwd command

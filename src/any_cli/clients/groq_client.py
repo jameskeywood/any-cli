@@ -7,14 +7,14 @@ from any_cli.clients.base import BaseClient
 from any_cli.config import settings
 from any_cli.models.messages import Message
 from any_cli.models.responses import ChatResponse, ToolCall
+from any_cli.models.limits import ModelLimits
 from any_cli.tools.base import BaseTool
 
 
 class GroqClient(BaseClient):
     provider = "groq"
 
-    def __init__(self, model: str = "openai/gpt-oss-120b") -> None:
-        self.model = model
+    def __init__(self) -> None:
         self.client = Groq(api_key=settings.groq_api_key)
 
     # ------------------------------------------------------------------
@@ -86,12 +86,13 @@ class GroqClient(BaseClient):
     # ------------------------------------------------------------------
     async def chat(
         self,
+        model: str,
         messages: list[Message],
         tools: list[BaseTool] | None = None,
     ) -> ChatResponse:
 
         response = self.client.chat.completions.create(
-            model=self.model,
+            model=model,
             messages=self._messages(messages),
             tools=self._tools(tools),
             tool_choice="auto",
@@ -131,5 +132,17 @@ class GroqClient(BaseClient):
             content=content,
             tool_calls=tool_calls,
             provider=self.provider,
-            model=self.model,
+            model=model,
         )
+
+
+    def get_available_models(self) -> list[str]:
+        return ["openai/gpt-oss-120b"]
+
+
+    def get_model_limits(self, model: str) -> ModelLimits:
+        return ModelLimits(
+            requests_per_minute=30,
+            requests_per_day=1000,
+            tokens_per_minute=8000,
+            tokens_per_day=200000)
